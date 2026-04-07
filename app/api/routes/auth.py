@@ -30,8 +30,8 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)):
     await db.refresh(new_user)
     
     # Create default preferences
-    new_prefs = UserPreferenceDB(user_id=new_user.id)
-    db.add(new_prefs)
+    new_preferences = UserPreferenceDB(user_id=new_user.id)
+    db.add(new_preferences)
     await db.commit()
     
     return new_user

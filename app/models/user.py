@@ -16,3 +16,4 @@ class UserDB(Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     preferences = relationship("UserPreferenceDB", back_populates="owner", uselist=False, cascade="all, delete-orphan")
+    app_overrides = relationship("AppOverrideDB", cascade="all, delete-orphan")
