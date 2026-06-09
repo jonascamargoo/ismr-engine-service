@@ -2,16 +2,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Este é o engine do banco de dados
 from app.db.database import engine, Base
 
-# Usamos o 'as engine_route' para dar um apelido e evitar a colisão!
 from app.api.routes import auth, preferences, users, overrides
 from app.api.routes import engine as engine_route 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Agora ele sabe que esse 'engine' é o do banco de dados
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
