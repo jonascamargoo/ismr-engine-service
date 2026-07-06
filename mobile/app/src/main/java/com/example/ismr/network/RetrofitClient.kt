@@ -4,6 +4,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
     private const val BASE_URL = "https://ismr-engine-service.onrender.com/"
@@ -24,6 +25,11 @@ object RetrofitClient {
 
     private val client: OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(authInterceptor)
+        // Timeouts generosos para sobreviver ao cold start do Render
+        // (o primeiro request após ~15 min ocioso pode levar 30-60s).
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
     val api: ApiService by lazy {

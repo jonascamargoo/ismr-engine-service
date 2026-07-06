@@ -82,6 +82,8 @@ fun RowScope.FooterButton(
     IconButton(
         onClick = {
             navController.navigate(route) {
+                // Evita empilhar telas ao trocar de aba (padrão de bottom-nav)
+                popUpTo(navController.graph.startDestinationId) { saveState = true }
                 launchSingleTop = true
                 restoreState = true
             }
