@@ -8,9 +8,9 @@ O projeto é um monorepo com três partes:
 |-------|---------|-------|
 | `app/` + `main.py` | **Backend** — API REST assíncrona | FastAPI · SQLAlchemy 2.0 async · PostgreSQL (Neon) · JWT · Google Gemini |
 | `ui/` | **PWA web** — cliente com suporte offline/background-sync | React 19 · Vite · Ant Design · Framer Motion |
-| `mobile/` | **App Android nativo** — porta a experiência do PWA | React Native · Expo (Expo Router) · TypeScript |
+| `mobile/` | **App Android nativo** — porta a experiência para Kotlin | Kotlin · Jetpack Compose · Retrofit · Coroutines |
 
-> Trabalho acadêmico — Desenvolvimento Mobile (CEFET-MG). A **Entrega 02** consiste em portar o PWA para um app nativo (`mobile/`) e publicar uma Release no GitHub com um `.apk` funcional.
+> Trabalho acadêmico — Desenvolvimento Mobile (CEFET-MG). A **Entrega 3.2** consiste em um app Android **nativo (Kotlin/Jetpack Compose)** em `mobile/`, com ≥2 telas Compose, ≥1 chamada de API e ≥1 recurso nativo, publicado como Release no GitHub com um `.apk` funcional.
 
 ---
 
@@ -46,26 +46,25 @@ React 19 + Vite + Ant Design. Mistura `.jsx`/`.tsx`.
 
 - URL base da API em `src/config.ts` → `import.meta.env.VITE_API_URL` (fallback `http://127.0.0.1:8000`)
 - Suporte offline: hook `useOnlineStatus` + componente `Offline.jsx`
-- Background sync: `syncManager.ts` enfileira POST/PUT no IndexedDB quando offline; o runtime caching do Vite PWA reenvia ao voltar a conexão
+- Background sync: `syncManager.ts` enfileira POST/PUT no IndexedDB quando offline
 - Páginas: `LoginPage`, `RegisterPage`, `HomePage`, `PreferencePage`, `UserPage`
 
-### Mobile (`mobile/`)
+### Mobile (`mobile/`) — Android nativo (Kotlin)
 
-React Native + Expo (Expo Router, roteamento por arquivos, TypeScript). Porta as telas, identidade e tema do PWA para um cliente Android nativo.
+App Android nativo em **Kotlin + Jetpack Compose**, consumindo o backend via **Retrofit + Coroutines** (padrão ViewModel + StateFlow). Detalhes completos em [`mobile/README.md`](mobile/README.md).
 
-- URL base da API em `mobile/config.ts` → `process.env.EXPO_PUBLIC_API_URL` (espelha o `ui/src/config.ts`)
-- Auth: `context/AuthContext.tsx` guarda a sessão JWT; token persistido com `expo-secure-store`
-- Dados: `hooks/use-fetch.ts` e `hooks/use-mutation.ts` (wrappers auth-aware/offline-aware sobre `fetch`)
-- Rede/offline: `hooks/use-network.ts` (`@react-native-community/netinfo`) + `components/ui/Offline.tsx`
-- Tema: `hooks/use-theme-storage.ts` (light/dark via `AsyncStorage`)
-- Navegação: `Stack` (auth gate) + `Tabs` (Home, Settings, Profile)
+- Base URL da API em `network/RetrofitClient.kt` → `https://ismr-engine-service.onrender.com`
+- Auth: login OAuth2 → JWT guardado em `network/TokenManager.kt`, injetado por interceptor OkHttp
+- Navegação: `MainActivity.kt` (gate de login) + `NavHost` + bottom bar
+- Telas: `Login`, `Home`, `Preferences`, `Profile` (`ui/screens/`)
 
-**Recursos nativos mapeados do PWA → Expo** (requisito da Entrega 02):
+**Entrega 3.2 — requisitos e onde estão:**
 
-| API do navegador (PWA) | Equivalente Expo (mobile) |
-|------------------------|---------------------------|
-| Notification API (`ui/src/main.jsx`) | `expo-notifications` (`hooks/use-notifications.ts`) |
-| Vibration API (`ui/src/hooks/useVibration.js`) | `expo-haptics` (`hooks/use-haptics.ts`) |
+| Requisito | Implementação |
+|-----------|---------------|
+| ≥2 telas Jetpack Compose | `Login`, `Home`, `Preferences`, `Profile` (`mobile/app/.../ui/screens/`) |
+| ≥1 chamada de API | `POST /auth/login`, `GET /preferences`, `PUT /preferences` (`mobile/app/.../network/ApiService.kt`) |
+| ≥1 recurso nativo | **Vibração** (`Vibrator`) e **Notificação local** (`NotificationCompat`), na `Home.kt` |
 
 ---
 
@@ -79,7 +78,7 @@ Python fixado em **3.13** (`.python-version`); gerência de dependências com **
 # Servidor de dev com hot reload (o objeto FastAPI `app` está em main.py na raiz)
 uv run uvicorn main:app --reload
 
-# Para testar de um dispositivo físico na mesma rede, escute em todas as interfaces:
+# Para testar de um dispositivo físico na mesma rede:
 uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -92,18 +91,18 @@ cd ui
 npm install
 npm run dev        # Vite dev server em http://localhost:5173
 npm run build      # build de produção → ui/dist/
-npm run lint       # ESLint
 ```
 
-### Mobile
+### Mobile (Kotlin)
+
+Requer **Android Studio** (Android SDK) + **JDK 17+**.
 
 ```bash
 cd mobile
-npm install
-npx expo start     # Expo dev server — abra no Expo Go ou em um emulador Android
-npm run android    # roda direto em um device/emulador Android
-npm run lint       # ESLint (expo lint)
+./gradlew assembleDebug     # -> app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Ou abra `mobile/` no Android Studio e use **Build > Build APK(s)**. Login de demonstração já pré-preenchido: usuário `demo`, senha `ismr1234`.
 
 ---
 
@@ -123,41 +122,28 @@ GEMINI_API_KEY=...                      # chave da API Google GenAI
 VITE_API_URL=http://127.0.0.1:8000      # URL do backend para dev local
 ```
 
-**Mobile** (`mobile/.env`):
-
-```
-EXPO_PUBLIC_API_URL=http://127.0.0.1:8000   # dev local; aponte para a URL do Render em builds de produção
-```
+O app **mobile** não usa arquivo de ambiente — a base URL fica em `mobile/app/src/main/java/com/example/ismr/network/RetrofitClient.kt`.
 
 ---
 
-## Build e Release do app mobile (Entrega 02)
+## Release do APK (Entrega 3.2)
 
-O perfil `production` em `mobile/eas.json` gera um `.apk` (em vez do `.aab` padrão da Play Store), pronto para instalação direta no Android. A URL do backend de produção (Render) já está fixada no `env` desse perfil — o `.env` local **não** é usado nos builds da nuvem do EAS.
-
-> **Cold start do Render (free tier):** o backend "dorme" após ~15 min de inatividade. Antes de demonstrar o APK, acorde-o abrindo `https://ismr-engine-service.onrender.com/docs` e aguarde carregar — senão o primeiro login parecerá travado por 30-60s.
-
-```bash
-cd mobile
-npx eas-cli login
-npx eas-cli init                                    # uma vez — vincula o projeto à conta Expo
-npx eas-cli build -p android --profile production   # gera o .apk
-```
-
-Depois, crie a tag e a Release anexando o `.apk`:
+1. Buildar o APK: `cd mobile && ./gradlew assembleDebug` (ou pelo Android Studio).
+2. Criar a tag e a Release no GitHub anexando o `.apk`:
 
 ```bash
-git tag vX.Y.Z && git push origin vX.Y.Z
-gh release create vX.Y.Z caminho/para/app.apk --title "vX.Y.Z" --notes "Release do app mobile"
+git tag v3.0.0 && git push origin v3.0.0
+gh release create v3.0.0 mobile/app/build/outputs/apk/debug/app-debug.apk \
+  --title "ISMR Android (Kotlin) v3.0.0" --notes "Entrega 3.2 — app nativo Kotlin"
 ```
 
-**Release atual:** [`v1.0.0`](https://github.com/jonascamargoo/ismr-engine-service/releases/tag/v1.0.0) (APK Android, ~87 MB).
+> ⚠️ **Cold start do Render:** o backend "dorme" após ~15 min ociosos; o primeiro login pode levar 30–60s. Abra `https://ismr-engine-service.onrender.com/docs` antes de demonstrar.
 
-> **Nota:** o `.apk` instala apenas em **Android**. iPhone exige um `.ipa` + conta Apple Developer.
+> A versão anterior (React Native/Expo, Entrega 02) está preservada na tag `v1.0.0` e na branch `entrega-02-final`.
 
 ---
 
 ## Limitações conhecidas
 
-- A **missão central** (ler as notificações que chegam no sistema e entregar um resumo) ainda **não está implementada** em nenhum cliente. O botão "Ear" na home apenas simula (dispara uma notificação local). Capturar notificações de outros apps exigiria um `NotificationListenerService` nativo no Android — planejado para a próxima entrega.
-- O mascaramento de dados sensíveis (privacidade) é delegado ao LLM (best-effort), sem mascaramento determinístico/regex.
+- A **missão central** (capturar as notificações que chegam no sistema e resumir) ainda **não está implementada** — exigiria um `NotificationListenerService` nativo. O botão da Home apenas simula (vibra + dispara uma notificação local).
+- O mascaramento de dados sensíveis (privacidade) é delegado ao LLM (best-effort), sem regex determinístico.

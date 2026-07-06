@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ISMR Engine Service is an AI-powered notification management system. It uses Google Gemini to reprocess and rewrite Android notifications based on user preferences (personality, focus mode, privacy, per-app muting rules). The backend is a FastAPI async API; there are two clients consuming it: a React PWA (`ui/`) with offline/background-sync support, and a React Native/Expo Android app (`mobile/`) that ports the same experience to a native client.
+ISMR Engine Service is an AI-powered notification management system. It uses Google Gemini to reprocess and rewrite Android notifications based on user preferences (personality, focus mode, privacy, per-app muting rules). The backend is a FastAPI async API; there are two clients consuming it: a React PWA (`ui/`) with offline/background-sync support, and a native Android app (`mobile/`, Kotlin + Jetpack Compose) that ports the same experience to a native client.
 
 ## Commands
 
@@ -35,16 +35,14 @@ npm run test-pwa   # PWA service worker test
 
 ### Mobile
 
+Native Android (Kotlin + Jetpack Compose). Requires Android Studio (Android SDK) + JDK 17+.
+
 ```bash
 cd mobile
-
-npm install
-npx expo start     # Expo dev server — open in Expo Go or an Android emulator
-npm run android    # Launch directly on an Android device/emulator
-npm run lint       # ESLint (expo lint)
+./gradlew assembleDebug   # APK → app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Requires a `mobile/.env` (see Environment Variables below). Read `mobile/AGENTS.md` (Expo v54 docs pointer) before changing native-facing code.
+Or open `mobile/` in Android Studio and use Build > Build APK(s). Demo login prefilled: user `demo`, password `ismr1234`.
 
 ## Architecture
 
@@ -85,23 +83,21 @@ React 19 + Vite + Ant Design + Framer Motion. Mixed `.jsx`/`.tsx`.
 
 **Pages**: `LoginPage`, `RegisterPage`, `HomePage` (main notification UI), `PreferencePage`, `UserPage`.
 
-### Mobile (`mobile/`)
+### Mobile (`mobile/`) — Android nativo (Kotlin)
 
-React Native + Expo (Expo Router, file-based routing, TypeScript). Ports the PWA's screens, identity and theme to a native Android client.
+Native Android app in **Kotlin + Jetpack Compose**, consuming the backend via **Retrofit + Coroutines** (ViewModel + StateFlow). See `mobile/README.md`. Package `com.example.ismr`.
 
 **Key patterns:**
-- API base URL from `mobile/config.ts` → `process.env.EXPO_PUBLIC_API_URL` (falls back to `http://127.0.0.1:8000`), mirroring `ui/src/config.ts`
-- Auth: `context/AuthContext.tsx` holds the JWT/user session; token persisted with `expo-secure-store`
-- Data layer: `hooks/use-fetch.ts` and `hooks/use-mutation.ts` (GET / POST·PUT·PATCH·DELETE wrappers around `fetch`, auth-aware, offline-aware)
-- Network/offline: `hooks/use-network.ts` (`@react-native-community/netinfo`) + `components/ui/Offline.tsx` banner
-- Theme: `hooks/use-theme-storage.ts` persists light/dark preference via `AsyncStorage`, read through `useColorScheme` and `constants/theme.ts` (`Colors`, `Fonts`)
-- Navigation: Expo Router `Stack` (`app/_layout.tsx`, auth gate redirecting between `(tabs)` and `/login`) + bottom `Tabs` (`app/(tabs)/_layout.tsx`: Home, Settings, Profile)
+- API base URL hardcoded in `network/RetrofitClient.kt` → `https://ismr-engine-service.onrender.com`
+- Auth: `POST /auth/login` (OAuth2 form) → JWT held in `network/TokenManager.kt` (in-memory), injected as `Authorization: Bearer` by an OkHttp interceptor in `RetrofitClient.kt`
+- Data layer: `network/ApiService.kt` (Retrofit interface) + `viewmodel/*ViewModel.kt` (StateFlow + `UiState` sealed class)
+- Navigation: `MainActivity.kt` — login gate (`AuthViewModel`), then `NavHost` + bottom bar (`ui/components/Footer.kt`)
 
-**Native resources (mapped from the PWA's browser APIs, per the Entrega 02 checklist):**
-- Notification API (`ui/src/main.jsx`) → `expo-notifications` (`hooks/use-notifications.ts`, permission flow + local notifications)
-- Vibration API (`ui/src/hooks/useVibration.js`) → `expo-haptics` (`hooks/use-haptics.ts`, used on tab presses and the listening button)
+**Native resources (Home screen, `ui/screens/Home.kt`, on the mic button):**
+- Vibration — `Vibrator`/`VibratorManager` (permission `VIBRATE`)
+- Local notification — `NotificationChannel` + `NotificationCompat` (runtime permission `POST_NOTIFICATIONS` via `ActivityResultContracts.RequestPermission`)
 
-**Screens**: `login`, `register`, `(tabs)/index` (home — listening toggle), `(tabs)/settings` (AI preferences), `(tabs)/profile` (user data + logout).
+**Screens** (`ui/screens/`): `Login`, `Home` (listening toggle), `Preferences` (AI settings via `GET/PUT /preferences`), `Profile`.
 
 ## Environment Variables
 
@@ -119,8 +115,4 @@ Frontend requires `ui/.env` (or Vite env):
 VITE_API_URL=http://127.0.0.1:8000     # Backend URL for local dev
 ```
 
-Mobile requires `mobile/.env`:
-
-```
-EXPO_PUBLIC_API_URL=http://127.0.0.1:8000   # Backend URL for local dev — point to the Render URL for production builds
-```
+The **mobile** app has no env file — the backend base URL is hardcoded in `mobile/app/src/main/java/com/example/ismr/network/RetrofitClient.kt`.

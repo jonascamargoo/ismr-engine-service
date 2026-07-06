@@ -1,74 +1,68 @@
-# Welcome to your Expo app 👋
+# ISMR — App Android (Kotlin + Jetpack Compose)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Cliente Android **nativo** do ISMR (Kotlin + Jetpack Compose). Porta a experiência do PWA/React Native para um app nativo e consome o backend FastAPI (`../app`, hospedado no Render).
 
-## Get started
+> **Entrega 3.2 — Desenvolvimento Mobile (CEFET-MG).** Esta seção mapeia cada requisito avaliado para onde ele está no código.
 
-1. Install dependencies
+## Requisitos da Entrega 3.2
 
-   ```bash
-   npm install
-   ```
+### 1. Telas em Jetpack Compose (mínimo 2) ✅
+| Tela | Arquivo |
+|------|---------|
+| **Login** | `app/src/main/java/com/example/ismr/ui/screens/Login.kt` |
+| **Home** (botão de escuta) | `app/src/main/java/com/example/ismr/ui/screens/Home.kt` |
+| **Preferências** | `app/src/main/java/com/example/ismr/ui/screens/Preferences.kt` |
+| **Perfil** | `app/src/main/java/com/example/ismr/ui/screens/Profile.kt` |
 
-2. Start the app
+Navegação em `MainActivity.kt`: gate de login → `NavHost` + bottom bar (`ui/components/Footer.kt`).
 
-   ```bash
-   npx expo start
-   ```
+### 2. Chamada de API (mínimo 1) ✅
+Stack: **Retrofit 2 + OkHttp + Gson + Coroutines**, no padrão **ViewModel + StateFlow** (`network/` e `viewmodel/`).
 
-In the output, you'll find options to open the app in a
+Backend: `https://ismr-engine-service.onrender.com` (definido em `network/RetrofitClient.kt`).
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+Chamadas em `network/ApiService.kt`:
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| Chamada | Método/rota | Onde |
+|---------|-------------|------|
+| Login (recebe JWT) | `POST /auth/login` (OAuth2 form) | `viewmodel/AuthViewModel.kt` |
+| **Carregar preferências** | `GET /preferences` | `viewmodel/PreferencesViewModel.kt` → `buscarPreferencias()` |
+| **Salvar preferências** | `PUT /preferences` | `viewmodel/PreferencesViewModel.kt` → `atualizarPreferencia()` |
 
-## Build de produção (APK) e Release no GitHub
+O JWT é injetado no header `Authorization: Bearer` por um **interceptor OkHttp** (`network/RetrofitClient.kt`), a partir do `network/TokenManager.kt`.
 
-O perfil `production` em `eas.json` gera um `.apk` (build type `apk`, em vez do `.aab` padrão para a Play Store), pronto para instalação direta no Android. A URL do backend de produção (Render) já está fixada no `env` desse perfil — o `.env` local (que aponta para dev) **não** é usado nos builds da nuvem do EAS.
+**Conta demo** (já registrada no backend e pré-preenchida na tela de Login):
 
-> **Cold start do Render (free tier):** o backend "dorme" após ~15 min de inatividade. Antes de instalar/demonstrar o APK, acorde-o abrindo `https://ismr-engine-service.onrender.com/docs` e aguarde carregar — senão o primeiro login parecerá travado por 30-60s.
-
-1. **Autentique e vincule o projeto à sua conta Expo** (uma vez só — gera `extra.eas.projectId` no `app.json`):
-   ```bash
-   npx eas-cli login
-   npx eas-cli init
-   ```
-2. (Opcional) Confira o identificador do app em `app.json` → `expo.android.package` (atualmente `com.jonascamargo.ismr`).
-3. Gere o build:
-   ```bash
-   npx eas-cli build -p android --profile production
-   ```
-4. Baixe o `.apk` gerado (o EAS fornece um link ao final do build, ou `npx eas-cli build:list` / `npx eas-cli build:download`).
-5. Crie a tag e a Release no repositório, anexando o executável:
-   ```bash
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
-   gh release create vX.Y.Z caminho/para/app.apk --title "vX.Y.Z" --notes "Release do app mobile (Entrega 02)"
-   ```
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+usuário: demo
+senha:   ismr1234
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+> ⚠️ **Cold start do Render (free tier):** o backend "dorme" após ~15 min ociosos. O **primeiro login pode levar 30–60s** — não é travamento. Para acelerar uma demonstração, abra antes `https://ismr-engine-service.onrender.com/docs`.
 
-## Learn more
+### 3. Recurso nativo (mínimo 1) ✅ — dois, na tela **Home**
+Ambos são acionados ao tocar no botão de microfone (`ui/screens/Home.kt`):
 
-To learn more about developing your project with Expo, look at the following resources:
+| Recurso | Como é acessado | Permissão |
+|---------|-----------------|-----------|
+| **Vibração** | `Vibrator` / `VibratorManager` → `vibrate(...)` (100ms ao alternar a escuta) | `VIBRATE` (`AndroidManifest.xml`) |
+| **Notificação local** | `NotificationChannel` + `NotificationCompat` → `NotificationManagerCompat.notify(...)` | `POST_NOTIFICATIONS`, solicitada em runtime via `ActivityResultContracts.RequestPermission` |
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Build do APK
 
-## Join the community
+Pré-requisitos: **Android Studio** (com Android SDK) + **JDK 17+**.
 
-Join our community of developers creating universal apps.
+```bash
+# APK debug (instalável direto no dispositivo):
+./gradlew assembleDebug
+# -> app/build/outputs/apk/debug/app-debug.apk
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Ou abra a pasta `mobile/` no Android Studio e use **Build > Build App Bundle(s) / APK(s) > Build APK(s)**.
+
+## Stack
+- Kotlin · Jetpack Compose · Material 3
+- Navigation Compose
+- Retrofit 2 + Gson + OkHttp (auth interceptor)
+- Coroutines + ViewModel + StateFlow
+- `minSdk = 24`, `targetSdk = 36`, `applicationId = com.example.ismr`
