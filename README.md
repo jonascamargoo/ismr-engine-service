@@ -128,14 +128,17 @@ O app **mobile** não usa arquivo de ambiente — a base URL fica em `mobile/app
 
 ## Release do APK (Entrega 3.2)
 
-1. Buildar o APK: `cd mobile && ./gradlew assembleDebug` (ou pelo Android Studio).
-2. Criar a tag e a Release no GitHub anexando o `.apk`:
+A Release **[`v3.0.0`](https://github.com/jonascamargoo/ismr-engine-service/releases/tag/v3.0.0)** já está publicada, com o `app-debug.apk` anexado ([download direto](https://github.com/jonascamargoo/ismr-engine-service/releases/download/v3.0.0/app-debug.apk)).
+
+O APK é gerado **na nuvem** por um workflow do **GitHub Actions** (`.github/workflows/build-apk.yml`) — não precisa de Android SDK local. Ele builda `mobile/` (`assembleDebug`) nos runners do GitHub e, ao dar push numa tag `v*`, cria a Release com o `.apk` anexado:
 
 ```bash
-git tag v3.0.0 && git push origin v3.0.0
-gh release create v3.0.0 mobile/app/build/outputs/apk/debug/app-debug.apk \
-  --title "ISMR Android (Kotlin) v3.0.0" --notes "Entrega 3.2 — app nativo Kotlin"
+git tag vX.Y.Z && git push origin vX.Y.Z   # dispara o build e publica a Release
 ```
+
+Também dá pra rodar o workflow manualmente (aba **Actions** → *Build Android APK* → *Run workflow*) e baixar o APK pelo *artifact*. Build local é opcional (`cd mobile && ./gradlew assembleDebug`, requer Android Studio/SDK).
+
+> Login de demonstração no app: usuário `demo`, senha `ismr1234`.
 
 > ⚠️ **Cold start do Render:** o backend "dorme" após ~15 min ociosos; o primeiro login pode levar 30–60s. Abra `https://ismr-engine-service.onrender.com/docs` antes de demonstrar.
 
